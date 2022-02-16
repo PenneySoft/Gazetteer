@@ -1771,7 +1771,7 @@ function convertPeopleObjToDom(people) {
       const $dataKey = $(`<span>Area:</span>`);
       $dataKey.addClass("data-key");
       // Val
-      const $val = $(`<span>${numberWithCommas(areaKm)} km2<span>`);
+      const $val = $(`<span>${numberWithCommas(areaKm)} km<sup>2</sup><span>`);
       // Slider
       const $slider = gen$DataSlider(areaKm, areaQ);
       $p.append([$dataKey, $val, $slider]);
@@ -1788,7 +1788,7 @@ function convertPeopleObjToDom(people) {
       $dataKey.addClass("data-key");
       // Val
       const $val = $(
-        `<span>${numberWithCommas(populationThouPerSq)} /km2<span>`
+        `<span>${numberWithCommas(populationThouPerSq)} /km<sup>2</sup><span>`
       );
       // Slider
       const densityQ = dataStore.quartilesObj.density;
@@ -1867,7 +1867,7 @@ function convertPeopleObjToDom(people) {
       const $dataKey = $(`<span>GDP density:</span>`);
       $dataKey.addClass("data-key");
       // Val
-      const $val = $(`<span>$${numberWithCommas(gdpKSqKm)}k /Km2<span>`);
+      const $val = $(`<span>$${numberWithCommas(gdpKSqKm)}k /km<sup>2</sup><span>`);
       // Slider
       const gdpDensity = dataStore.quartilesObj.gdpDensity;
       // come back
