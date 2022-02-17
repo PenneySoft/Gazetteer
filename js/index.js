@@ -161,6 +161,7 @@ class AppState {
     $("#info-tab"),
     $(".nav.nav-tabs")
   ];
+  firstCountryNotYetLoaded = true;
 }
 
 // Init data stores
@@ -505,7 +506,7 @@ function createWikiPContainers() {
 // New country to load, wiki
 function loadNewCountryWiki(iso2) {
   // Remove nav disabled class
-  if (!appState.currentIso) $('#tabs-list').removeClass('disabled');
+  if (appState.firstCountryNotYetLoaded) { $('#tabs-list').removeClass('disabled'); delete appState.firstCountryNotYetLoaded }
   // Remove current country data
   resetInfoPanel();
 
