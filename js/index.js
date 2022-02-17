@@ -159,7 +159,7 @@ class AppState {
     $("#info-col"),
     $("#darken-map"),
     $("#info-tab"),
-    $(".nav.nav-tabs"),
+    $(".nav.nav-tabs")
   ];
 }
 
@@ -504,6 +504,8 @@ function createWikiPContainers() {
 /*      Wiki      */
 // New country to load, wiki
 function loadNewCountryWiki(iso2) {
+  // Remove nav disabled class
+  if (!appState.currentIso) $('#tabs-list').removeClass('disabled');
   // Remove current country data
   resetInfoPanel();
 
@@ -1771,7 +1773,7 @@ function convertPeopleObjToDom(people) {
       const $dataKey = $(`<span>Area:</span>`);
       $dataKey.addClass("data-key");
       // Val
-      const $val = $(`<span>${numberWithCommas(areaKm)} km<sup>2</sup><span>`);
+      const $val = $(`<span>${numberWithCommas(areaKm)} km2<span>`);
       // Slider
       const $slider = gen$DataSlider(areaKm, areaQ);
       $p.append([$dataKey, $val, $slider]);
@@ -1788,7 +1790,7 @@ function convertPeopleObjToDom(people) {
       $dataKey.addClass("data-key");
       // Val
       const $val = $(
-        `<span>${numberWithCommas(populationThouPerSq)} /km<sup>2</sup><span>`
+        `<span>${numberWithCommas(populationThouPerSq)} /km2<span>`
       );
       // Slider
       const densityQ = dataStore.quartilesObj.density;
@@ -1867,7 +1869,7 @@ function convertPeopleObjToDom(people) {
       const $dataKey = $(`<span>GDP density:</span>`);
       $dataKey.addClass("data-key");
       // Val
-      const $val = $(`<span>$${numberWithCommas(gdpKSqKm)}k /km<sup>2</sup><span>`);
+      const $val = $(`<span>$${numberWithCommas(gdpKSqKm)}k /Km2<span>`);
       // Slider
       const gdpDensity = dataStore.quartilesObj.gdpDensity;
       // come back

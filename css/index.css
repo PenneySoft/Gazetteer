@@ -91,6 +91,10 @@ img.gaz-logo {
     border-radius: 1rem;
     color: #0e1c20;
     width: 12rem;
+    transition: ease-in-out width 300ms;
+}
+.search-bar input:focus {
+    width: 16rem;
 }
 
 #search-icon {
@@ -243,6 +247,14 @@ div.info-tabs ul.nav.nav-tabs.nav-fill .nav-item i.nav-link.active {
     border-bottom: 1px solid #f0f0f0;
     color: #142830;
     font-weight: bold;
+}
+/* Disable nav if no country selected */
+ul.nav-tabs.disabled {
+    cursor: default;
+}
+div.info-tabs ul.nav.nav-tabs.nav-fill.disabled .nav-item i.nav-link,
+div.info-tabs ul.nav.nav-tabs.nav-fill.disabled .nav-item i.nav-link:hover {
+    color: #999;
 }
 
 /* Data */
@@ -716,6 +728,20 @@ h5.settings-tab-solid {
     margin-bottom: 1.5rem;
 }
 
+#appmap span.fa.fa-crosshairs.fa-lg {
+    vertical-align: -10%;
+}
+
+
+/* Extra narrow */
+@media only screen and (max-width: 550px) {
+    .search-bar input {
+        width: 10rem;
+    }
+    .search-bar input:focus {
+        width: 14rem;
+    }
+}
 
 
 /* Desktop */
@@ -727,7 +753,10 @@ h5.settings-tab-solid {
 
     /* Title */
     .search-bar input {
-        width: auto;
+        width: 16rem;
+    }
+    .search-bar input:focus {
+        width: 20rem;
     }
 
 
