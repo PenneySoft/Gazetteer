@@ -1,74 +1,10 @@
 <?php
 
-/*              Import libraries                */
+/*              Import utils                */
 
 
-function parseHeader($headerString, $assocArray) {
-    // Split into array of key & value
-    $headerArray = explode("\n", $headerString);
-
-    $headerObject = [];
-    $statusString = "";
-
-    // Parse each line and separate into Key/Value Object/Associative Array
-    foreach ($headerArray as $line) {
-        $key = "";
-        $value = "";
-        //$statusHeader = "HTTP/1.1";
-        $statusHeader = "HTTP/";
-        $breakPoint = strpos($line, ":");
-
-        $httpPos = strpos($line, $statusHeader);
-        if ($httpPos !== false) {
-            // Edge case: Status code at Line 0, stash now, allocate after loop
-            $statusHeaderLen = strpos($line, " ");
-            $statusString = substr($line, $statusHeaderLen+1);
-        } else if (boolval($breakPoint) === true) {
-            // Key/Value pair found
-            $key = substr($line, 0, $breakPoint);
-            $value = substr($line, $breakPoint+2);
-        }
-        if (!empty($key)) {
-            // Add any Key/Value pairs
-            $headerObject[$key] = $value;
-        }
-    }
-
-    // Instantiate default status vals
-    $statusCode = 0;
-    $statusMessage = "";
-
-    // Parse status string
-    $statusWhiteSpacePos = strpos($statusString, " ");
-    $statusCode = intval(substr($statusString, 0, $statusWhiteSpacePos));
-    $statusMessage = substr($statusString, $statusWhiteSpacePos+1);
-
-    $headerObject["Status"]["Code"] = $statusCode;
-    $headerObject["Status"]["Message"] = $statusMessage;
-
-    // Add status to input assocArray parameter
-    $assocArray["Header"] = $headerObject;
-    return $assocArray;
-}
-
-function add_origin_to_header() {
-    $req_origin = '';
-    $req_ref = '';
-    if (array_key_exists('HTTP_ORIGIN', $_SERVER)) {
-        $req_origin = $_SERVER['HTTP_ORIGIN'];
-    }
-    if (array_key_exists('HTTP_REFERER', $_SERVER)) {
-        $req_ref = $_SERVER['HTTP_REFERER'];
-    }
-    $req_addr = $_SERVER['REMOTE_ADDR'] ?? '';
-    header('X-req-origin: ' . $req_origin);     // ""
-    header('X-req-ref: ' . $req_ref);           // "http://localhost/gazetteer/" , https://www.nicholaspenney.co.uk/
-    header('X-req-addr: ' . $req_addr);         // "::1"
-}
-
-
-
-function get_start_and_end_of_current_intervals() {
+function getStartAndEndOfCurrentIntervals()
+{
     /**
      * Return format:
      * array: [
@@ -80,11 +16,9 @@ function get_start_and_end_of_current_intervals() {
      */
     
     // CONST
-    $secs_in_minute = 60;
-    //$secs_in_hour = $secs_in_minute * 60; // 3,600
-    $secs_in_hour = 3600;
-    //$secs_in_day = $secs_in_hour * 24; // 86,400
-    $secs_in_day = 86400;
+    $SECS_IN_MINUTE = 60;
+    $SECS_IN_HOUR = 3600;
+    $SECS_IN_DAY = 86400;
     
     // Get date
     $now_date = getdate();
@@ -98,19 +32,19 @@ function get_start_and_end_of_current_intervals() {
 
     // Minute
     $min_start_unix = $now_unix - $now_seconds;
-    $min_end_unix = $min_start_unix + $secs_in_minute;
+    $min_end_unix = $min_start_unix + $SECS_IN_MINUTE;
     $min_array = [$min_start_unix, $min_end_unix];
 
     // Hour
-    $now_minutes_in_secs = $now_minutes * $secs_in_minute;
+    $now_minutes_in_secs = $now_minutes * $SECS_IN_MINUTE;
     $hour_start_unix = $now_unix - $now_minutes_in_secs - $now_seconds;
-    $hour_end_unix = $hour_start_unix + $secs_in_hour;
+    $hour_end_unix = $hour_start_unix + $SECS_IN_HOUR;
     $hour_array = [$hour_start_unix, $hour_end_unix];
 
     // Day
-    $days_since_epoch = floor($now_unix / $secs_in_day);
-    $day_start_unix = $days_since_epoch * $secs_in_day;
-    $day_end_unix = $day_start_unix + $secs_in_day;
+    $days_since_epoch = floor($now_unix / $SECS_IN_DAY);
+    $day_start_unix = $days_since_epoch * $SECS_IN_DAY;
+    $day_end_unix = $day_start_unix + $SECS_IN_DAY;
     $day_array = [$day_start_unix, $day_end_unix];
 
     // Month
@@ -140,39 +74,39 @@ function get_start_and_end_of_current_intervals() {
 /*              Setup               */
 
 // Header for response to AJAX
-$headerJson = 'Content-Type: application/json; charset=UTF-8';
-header($headerJson);
+$header_json = 'Content-Type: application/json; charset=UTF-8';
+header($header_json);
 
 // Assoc array to send to client
-$resultArr = [];
+$result_arr = [];
 
 /*              Parse request               */
 
 // Get AJAX request header
 $iso2 = "";
 // Check if ISO2 arg is present
-if (!isset($_REQUEST['iso2'])) {
+if (!isset($_GET['iso2'])) {
     // ISO2 error
-    bad_request();
-    //echo_res_json();
+    badRequest();
+    //echoResJson();
     die();
 }
 // gb => GB
-$iso2 = strtoupper($_REQUEST['iso2']);
+$iso2 = strtoupper($_GET['iso2']);
 
 
 // Check if ISO2 arg is valid
-$country_name = iso2_to_country_name($iso2);
+$country_name = iso2ToCountryName($iso2);
 
 if (is_null($country_name)) {
     // Server error
-    internal_server();
+    internalServer();
     die();
 }
-if ($country_name == FALSE) {
+if ($country_name == false) {
     // ISO2 error
-    bad_request();
-    //echo_res_json();
+    badRequest();
+    //echoResJson();
     die();
 }
 
@@ -181,22 +115,22 @@ if ($country_name == FALSE) {
 
 
 // Check if info arg is present
-if (!isset($_REQUEST['info'])) {
+if (!isset($_GET['info'])) {
     // Info arg error
-    bad_request();
-    //echo_res_json();
+    badRequest();
+    //echoResJson();
     die();
 }
-$req_info = $_REQUEST['info'];
+$req_info = $_GET['info'];
 
 // Split info string into array
 $req_info_array_raw = explode(",", $req_info);
 
 // start currency injection
 // Check if currency arg is present
-$currency_code = NULL;
+$currency_code = null;
 $req_info_array = [];
-foreach($req_info_array_raw as $req_info) {
+foreach ($req_info_array_raw as $req_info) {
     $needle = "currency:";
     $needle_pos = strpos($req_info, $needle);
     if ($needle_pos === 0) {
@@ -220,21 +154,21 @@ $req_info_array_count = count($req_info_array);
 
 if ($req_info_array_count == 0) {
     // Info arg error
-    bad_request();
-    //echo_res_json();
+    badRequest();
+    //echoResJson();
     die();
 }
 
 
 // Got array of info requests
 // Check all are valid - pass through checking function of permitted values
-$validated_info_array = info_reqs_valid($req_info_array);
+$validated_info_array = infoReqsValid($req_info_array);
 $validated_info_array_count = count($validated_info_array);
 
 if ($validated_info_array_count == 0) {
     // Info arg error
-    bad_request();
-    //echo_res_json();
+    badRequest();
+    //echoResJson();
     die();
 }
 
@@ -253,12 +187,12 @@ $password = file_get_contents('../keys/sqlpass.txt');
 
 // Connection to DB
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-$conn = NULL;
+$conn = null;
 try {
     $conn = new mysqli($host_name, $user_name, $password, $database);
 } catch (\Throwable $th) {
     // SQL conn error
-    internal_server();
+    internalServer();
     die();
 }
 
@@ -273,14 +207,14 @@ if (!is_null($currency_code)) $currency_code = $conn->real_escape_string($curren
 $client_ip = "";
 if (!isset($_SERVER['REMOTE_ADDR'])) {
     // IP not found, return 429 error
-    client_spam();
+    clientSpam();
     die();
 }
 // Got IP
 $client_ip = $_SERVER['REMOTE_ADDR'];
 
-//$interval_start_end_obj = NULL;
-$interval_start_end_obj = get_start_and_end_of_current_intervals();
+//$interval_start_end_obj = null;
+$interval_start_end_obj = getStartAndEndOfCurrentIntervals();
 // [ min, hour, day, mon ]
 //   min = [start, end] etc
 
@@ -288,18 +222,18 @@ $interval_start_end_obj = get_start_and_end_of_current_intervals();
 if (!is_null($interval_start_end_obj)) {
     $keys = ["mon", "day", "hour", "min"];
     
-    $max_hits_for_interval_types = get_max_hits_for_interval_types($conn);
+    $max_hits_for_interval_types = getMaxHitsForIntervalTypes($conn);
     
     if (is_null($max_hits_for_interval_types)) {
         // IP max allowable table not found, return 500 error
-        internal_server();
+        internalServer();
         $conn->close();
         die();
     }
     
     
     // Loop through intervals and check db for too many IP
-    foreach($keys as $key) {
+    foreach ($keys as $key) {
         if (!isset($max_hits_for_interval_types[$key])) {
             // Cannot find interval type from max allowable table
             continue;
@@ -311,10 +245,10 @@ if (!is_null($interval_start_end_obj)) {
         $start_end = $interval_start_end_obj[$key];
         $start_unix = $start_end[0];
         $ip_escaped = $conn->real_escape_string($client_ip);
-        $user_is_spamming = is_user_spamming_interval($conn, $key, $max_for_interval, $start_unix, $client_ip);
+        $user_is_spamming = isUserSpammingInterval($conn, $key, $max_for_interval, $start_unix, $client_ip);
         if ($user_is_spamming) {
             // Too many requests in at least one interval
-            client_spam();
+            clientSpam();
             $conn->close();
             die();
         }
@@ -341,7 +275,7 @@ $res_data_objs = [];
 $get_ext = [];
 
 // Try DB first
-foreach($validated_info_array as $info_type) {
+foreach ($validated_info_array as $info_type) {
     // info_type vals: wiki, weather, financial, people, currency
     switch ($info_type) {
         case 'wiki':
@@ -392,14 +326,15 @@ foreach($validated_info_array as $info_type) {
             }
             $res_data_objs[$info_type] = getPopulationDb($iso2, $conn);
             break;
-        default: break;
+        default:
+            break;
     }
 }
 // Should have all DB data, check for need for External API
 
 // Generate multi cURL URLs
 $urls = [];
-foreach($get_ext as $info_type) {
+foreach ($get_ext as $info_type) {
     // info_type vals: wiki, weather, financial, people, currency
     switch ($info_type) {
         case 'wiki':
@@ -410,16 +345,18 @@ foreach($get_ext as $info_type) {
             $people_url = genPeopleUrl($iso2);
             array_push($urls, $people_url);
             break;
-        default: array_push($urls, NULL); break;
+        default:
+            array_push($urls, null);
+            break;
     }
 }
 
 // Build multi cURL request array
 $chs = [];
 $mh = curl_multi_init();
-foreach($urls as $url) {
-    if (is_null($url)){
-        array_push($chs, NULL);
+foreach ($urls as $url) {
+    if (is_null($url)) {
+        array_push($chs, null);
     } else {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -437,17 +374,17 @@ if (count($chs) > 0) {
         curl_multi_exec($mh, $running);
     } while ($running);
     // Remove handles
-    foreach($chs as $ch) {
+    foreach ($chs as $ch) {
         curl_multi_remove_handle($mh, $ch);
     }
     // Close cURL
     curl_multi_close($mh);
     // Unpack responses
-    foreach($chs as $ch) {
+    foreach ($chs as $ch) {
         // Get res string
-        if (is_null($ch)){
+        if (is_null($ch)) {
             // Empty curl handlder
-            array_push($api_responses, NULL);
+            array_push($api_responses, null);
         } else {
             // Should have response
             $curl_res = curl_multi_getcontent($ch);
@@ -457,7 +394,7 @@ if (count($chs) > 0) {
 }
 
 // Handle API responses
-for ($i=0; $i<count($get_ext); $i++) {
+for ($i = 0; $i < count($get_ext); $i++) {
     // Get loop vals
     $info_type = $get_ext[$i];
     $api_res = $api_responses[$i];
@@ -465,16 +402,21 @@ for ($i=0; $i<count($get_ext); $i++) {
     if (is_null($api_res)) continue;
     // Handle each type
     switch ($info_type) {
-        case 'wiki': parseWikiExternal($api_res); break;
-        case 'people': parsePeopleExternal($api_res, $conn, $iso2); break;
-        default: break;
+        case 'wiki':
+            parseWikiExternal($api_res);
+            break;
+        case 'people':
+            parsePeopleExternal($api_res, $conn, $iso2);
+            break;
+        default:
+            break;
     }
 }
 // Should have all data, either from DB or External API
 
 /*              Return data             */
-$resultArr['data'] = $res_data_objs;
-echo_res_json();
+$result_arr['data'] = $res_data_objs;
+echoResJson();
 
 $conn->close();
 die();
@@ -485,9 +427,10 @@ die();
 
 // Output results in JSON format back to user
 // : VOID
-function echo_res_json() {
-    global $resultArr;
-    $json = json_encode($resultArr, JSON_UNESCAPED_UNICODE);
+function echoResJson()
+{
+    global $result_arr;
+    $json = json_encode($result_arr, JSON_UNESCAPED_UNICODE);
     // Zip
     $http_accept_encoding = "";
     $accept_encoding = "";
@@ -506,30 +449,31 @@ function echo_res_json() {
 }
 
 // Check if ISO2 code is valid, and return corresponding country name
-// : string || NULL || FALSE
-function iso2_to_country_name($iso2) {
+// : string || null || false
+function iso2ToCountryName($iso2)
+{
     $isos_json_string = file_get_contents('../../json/country-isos.json');
     $country_names_string = file_get_contents('../../json/countryarray.json');
     // Parse JSON
-    $iso_object = json_decode($isos_json_string, TRUE);
+    $iso_object = json_decode($isos_json_string, true);
     $country_names_array = json_decode($country_names_string);
     // Parse check
-    $iso_error = is_null($iso_object) || $iso_object == FALSE ;
-    $country_error = is_null($country_names_array) || $country_names_array == FALSE;
+    $iso_error = is_null($iso_object) || $iso_object == false ;
+    $country_error = is_null($country_names_array) || $country_names_array == false;
     if ($iso_error || $country_error) {
         // Couldn't parse json as array for haystack
-        return NULL;
+        return null;
     }
     $iso2_array = $iso_object['iso2'];
     $index = array_search($iso2, $iso2_array);
-    if ($index == FALSE) {
+    if ($index == false) {
         // Edge case: ISO not found
-        return FALSE;
+        return false;
     }
     $array_len = count($country_names_array);
     if ($index >= $array_len) {
         // Edge case, index out of bounds
-        return FALSE;
+        return false;
     }
     $country_name = $country_names_array[$index];
     return $country_name;
@@ -537,7 +481,8 @@ function iso2_to_country_name($iso2) {
 
 // Return only valid info request strings
 // : [string]
-function info_reqs_valid($req_info_array) {
+function infoReqsValid($req_info_array)
+{
     $valid_info_types = [];
     $haystack = ["wiki", "weather", "financial", "people", "currency", "population"];
 
@@ -554,7 +499,8 @@ function info_reqs_valid($req_info_array) {
 
 // Get the maximum allowable IP hits for a interval types
 // : { mon: int, day: int, hour: int, min: int }
-function get_max_hits_for_interval_types($conn) {
+function getMaxHitsForIntervalTypes($conn)
+{
     $field_names = 'interval_type, interval_max';
     $table_name = 'ip_hit_info_max';
     $ip_hit_max_sql =
@@ -567,18 +513,18 @@ function get_max_hits_for_interval_types($conn) {
     // Check if there are any hits for IP in that interval range
     if ($result->num_rows == 0) {
         // Error, no rows found
-        return NULL;
+        return null;
     } else {
         // Success, parse output and return assoc array
         $interval_type_max = [];
         while($row = $result->fetch_assoc()) {
             if (!isset($row['interval_type'])) {
                 // Row error
-                return NULL;
+                return null;
             }
             if (!isset($row['interval_max'])) {
                 // Row error
-                return NULL;
+                return null;
             }
             // Row data success
             $interval_type = $row['interval_type'];
@@ -593,7 +539,13 @@ function get_max_hits_for_interval_types($conn) {
 
 // Check DB for user's IP to prevent spamming
 // : BOOLEAN
-function is_user_spamming_interval($conn, $interval_type_key, $max_for_interval, $start_unix, $client_ip) {
+function isUserSpammingInterval(
+    $conn,
+    $interval_type_key,
+    $max_for_interval,
+    $start_unix,
+    $client_ip
+) {
     // Clear old data first
     $table_name = 'ip_hit_info';
 
@@ -610,29 +562,29 @@ function is_user_spamming_interval($conn, $interval_type_key, $max_for_interval,
     // Check if there are any hits for IP in that interval range
     if ($result->num_rows > 1) {
         // Error, should never be multiple entries for given IP and start_unix
-        return TRUE;
+        return true;
     } elseif ($result->num_rows == 1) {
         // There are hits
         // Check if at max
-        //  if max, return TRUE
-        //  if below max, increment value, return FALSE
+        //  if max, return true
+        //  if below max, increment value, return false
         $row = $result->fetch_assoc();
 
         if (!isset($row["interval_count"])) {
             // Error with fetched row
-            return TRUE;
+            return true;
         }
 
         $interval_count = $row["interval_count"];
         if ($interval_count >= $max_for_interval) {
             // Spamming
-            return TRUE;
+            return true;
         }
 
         // Increment interval_count
         if (!isset($row["id"])) {
             // Error with fetched row
-            return TRUE;
+            return true;
         }
         // Gen data
         $id = $row["id"];
@@ -648,15 +600,15 @@ function is_user_spamming_interval($conn, $interval_type_key, $max_for_interval,
         $put_result = $conn->query($sql_put);
 
         // User can proceed with request
-        return FALSE;
+        return false;
     } else {
-        // No hits for interval, instantiate IP with 1 hit, return FALSE
+        // No hits for interval, instantiate IP with 1 hit, return false
         $sql_post = 
         "INSERT INTO ${table_name} (ip_address, interval_type, start_unix, interval_count) 
         VALUES ('${client_ip}', '${interval_type_key}', ${start_unix}, 1);"
         ;
         $post_result = $conn->query($sql_post);
-        return FALSE;
+        return false;
     }
 }
 
@@ -665,23 +617,26 @@ function is_user_spamming_interval($conn, $interval_type_key, $max_for_interval,
 
 
 // Fetch Wiki data from DB
-// : { ... } || NULL
-function getWikiDb($iso2) {
+// : { ... } || null
+function getWikiDb($iso2)
+{
     // Not yet available
     // Use Geonames external API
-    return NULL;
+    return null;
 }
 
 // Fetch Weather data from DB
-// : { ... } || NULL
-function getWeatherDb($iso2) {
+// : { ... } || null
+function getWeatherDb($iso2)
+{
     // Implement cache later
-    return NULL;
+    return null;
 }
 
 // Fetch Financial data from DB
-// : { ... } || NULL
-function getFinancialDb($iso2, $conn) {
+// : { ... } || null
+function getFinancialDb($iso2, $conn)
+{
     $iso = $iso2;
     // Get GDP
     $table_name = 'people_data';
@@ -703,8 +658,9 @@ function getFinancialDb($iso2, $conn) {
 }
 
 // Fetch People data from DB
-// : { ... } || NULL
-function getPeopleDb($iso, $conn) {
+// : { ... } || null
+function getPeopleDb($iso, $conn)
+{
     // Get GDP
     $table_name = 'people_data';
 
@@ -767,7 +723,7 @@ function getPeopleDb($iso, $conn) {
         $row = $result->fetch_assoc();
         $rtn_obj = [];
         // Unpack to JS camelCase
-        for ($i=0;$i<count($fields);$i++) {
+        for ($i = 0; $i < count($fields); $i++) {
             $field = $fields[$i];
             $rtn_key = $rtn_keys[$i];
             // Skip missing response keys
@@ -778,7 +734,9 @@ function getPeopleDb($iso, $conn) {
             // Cast
             $cast = $data_types[$i];
             switch ($cast) {
-                case 'i': $rtn_val = intval($rtn_val);
+                case 'i':
+                    $rtn_val = intval($rtn_val);
+                    break;
             }
             // return
             $rtn_obj[$rtn_key] = $rtn_val;
@@ -787,20 +745,21 @@ function getPeopleDb($iso, $conn) {
         if (isset($row['unix_day_modified'])) {
             $unix_day_modified = $row['unix_day_modified'];
             if ($unix_day_modified > $unix_day_7_days_ago) {
-                $rtn_obj['is_recent'] = TRUE;
-                //$rtn_obj['is_recent'] = NULL;
+                $rtn_obj['is_recent'] = true;
+                //$rtn_obj['is_recent'] = null;
             }
         }
         
         return $rtn_obj;
     }
     // Error
-    return NULL;
+    return null;
 }
 
 // Fetch currency data from DB
-// : { current: {r: rateFloat, t: unixInt}, days: [ {t,l,o,c,h}, {...}, ... ] } || NULL
-function getCurrencyDb($currency_code, $conn) {
+// : { current: {r: rateFloat, t: unixInt}, days: [ {t,l,o,c,h}, {...}, ... ] } || null
+function getCurrencyDb($currency_code, $conn)
+{
     $currency_code_escaped = $conn->real_escape_string($currency_code);
     $current_time = time();
     $current_unix_day = floor($current_time / 86400);
@@ -869,7 +828,8 @@ function getCurrencyDb($currency_code, $conn) {
     return [];
 }
 
-function getPopulationDb($iso2, $conn) {
+function getPopulationDb($iso2, $conn)
+{
     // Generate SQL query
     $field_names = 'population';
     $table_name = 'people_data';
@@ -888,7 +848,7 @@ function getPopulationDb($iso2, $conn) {
         // Finished
         return $population;
     }
-    return NULL;
+    return null;
 }
 
 
@@ -896,7 +856,8 @@ function getPopulationDb($iso2, $conn) {
 /*              Fetch from External API             */
 
 
-function genWikiUrl($country_name) {
+function genWikiUrl($country_name)
+{
     $api_key = file_get_contents('../keys/geonames.txt');
     $country_url_escape = urlencode($country_name);
 
@@ -907,8 +868,9 @@ function genWikiUrl($country_name) {
 // Fetch Wiki From External API
 // : [ {sum, w_url, t_url, (w_flag, t_flag)}, ... ] || []
 // Parse API response string, save to global rtn var
-function parseWikiExternal($response) {
-    function _string_clean($string) {
+function parseWikiExternal($response)
+{
+    function _stringClean($string) {
         $string = str_replace(['-', '_'], '', $string); // Deletes all hyphens and underscores
         return preg_replace('/[^A-Za-z0-9\-]/', '', $string); // Removes special chars. 
     }
@@ -926,9 +888,9 @@ function parseWikiExternal($response) {
     $valid_entries = [];
 
     // If no thumbnail entry is found on the primary entry
-    $just_waiting_on_thumbnail = FALSE;
+    $just_waiting_on_thumbnail = false;
     $backup_thumbnail = "";
-    $backup_thumbnail_long_flag = TRUE;
+    $backup_thumbnail_long_flag = true;
 
     // Getting wiki url
     $url_prefix = "en.wikipedia.org/wiki/";
@@ -939,12 +901,12 @@ function parseWikiExternal($response) {
     $img_prefix_len = strlen($img_prefix);
 
     // Loop through API response lines
-    foreach($geonames_array as $entry) {
+    foreach ($geonames_array as $entry) {
 
         // thumbail_url
         $key = 'thumbnailImg';
         $thumbnail_url = "";
-        $thumbnail_url_is_long = TRUE;
+        $thumbnail_url_is_long = true;
         if (isset($entry[$key])) {
             $thumbnail_url = $entry[$key];
             $thumb_url_len = strlen($thumbnail_url);
@@ -954,7 +916,7 @@ function parseWikiExternal($response) {
                 if ($thumb_start == $img_prefix) {
                     // Can remove reused prefix and generate client-side
                     $thumbnail_url = substr($thumbnail_url, $img_prefix_len);
-                    $thumbnail_url_is_long = FALSE;
+                    $thumbnail_url_is_long = false;
                 }
             }
             if ($backup_thumbnail == "") {
@@ -965,13 +927,13 @@ function parseWikiExternal($response) {
         }
 
         // Edge case where we have found primary result, but are looping just to extract a relevant thumbnail URL
-        if ($just_waiting_on_thumbnail == TRUE) {
+        if ($just_waiting_on_thumbnail == true) {
             if ($thumbnail_url == "") {
                 continue;
             } else {
                 $valid_entries[0]["t_url"] = $thumbnail_url;
-                if ($thumbnail_url_is_long == TRUE)  {
-                    $valid_entries[0]["t_flag"] = TRUE;
+                if ($thumbnail_url_is_long == true)  {
+                    $valid_entries[0]["t_flag"] = true;
                 } else {
                     unset($valid_entries[0]["t_flag"]);
                 }
@@ -994,29 +956,29 @@ function parseWikiExternal($response) {
         $wiki_url = $entry[$key];
         $url_end = $wiki_url;
         $url_len = strlen($url_end);
-        $wiki_url_is_long = TRUE;
+        $wiki_url_is_long = true;
         if ($url_len > $url_prefix_len) {
             // Might be able to shorten
             $url_start = substr($wiki_url, 0, $url_prefix_len);
             if ($url_start == $url_prefix) {
                 // Shorten and add prefix server size
                 $url_end = substr($wiki_url, $url_prefix_len);
-                $wiki_url_is_long = FALSE;
+                $wiki_url_is_long = false;
             }
         }
         $url_end_lower = strtolower($url_end);
         $country_lower = strtolower($country_name);
-        $url_end_clean = _string_clean($url_end_lower);
-        $country_clean = _string_clean($country_lower);
+        $url_end_clean = _stringClean($url_end_lower);
+        $country_clean = _stringClean($country_lower);
         $url_end_matches_country_name = $url_end_clean == $country_clean;
 
-        if ($url_end_matches_country_name == FALSE) {
+        if ($url_end_matches_country_name == false) {
             // Edge cases like "the_bahamas" => "bahamas"
             $url_end_lower_no_the = str_replace(["the-", "the_"], "", $url_end_lower);
-            $url_end_lower_no_the_clean = _string_clean($url_end_lower_no_the);
+            $url_end_lower_no_the_clean = _stringClean($url_end_lower_no_the);
             $url_end_matches_country_name = $url_end_lower_no_the_clean == $country_clean;
 
-            if ($url_end_matches_country_name == FALSE) {
+            if ($url_end_matches_country_name == false) {
                 // Edge cases like "georgia_(country)" => "georgia"
                 $url_end_lower_no_the_clean_no_bracket_country = str_replace("28country29", "", $url_end_lower_no_the_clean);
                 $url_end_matches_country_name = $url_end_lower_no_the_clean_no_bracket_country == $country_clean;
@@ -1027,11 +989,11 @@ function parseWikiExternal($response) {
         $valid_entry['sum'] = $summary;
         $valid_entry['w_url'] = $url_end;
         $valid_entry['t_url'] = $thumbnail_url;
-        if ($wiki_url_is_long == TRUE) {
-            $valid_entry["w_flag"] = TRUE;
+        if ($wiki_url_is_long == true) {
+            $valid_entry["w_flag"] = true;
         }
-        if ($thumbnail_url_is_long == TRUE) {
-            $valid_entry["t_flag"] = TRUE;
+        if ($thumbnail_url_is_long == true) {
+            $valid_entry["t_flag"] = true;
         }
         
         array_push($valid_entries, $valid_entry);
@@ -1047,15 +1009,15 @@ function parseWikiExternal($response) {
                 if ($backup_thumbnail != "") {
                     // Use already-found backup
                     $valid_entries[0]['t_url'] = $backup_thumbnail;
-                    if ($backup_thumbnail_long_flag == TRUE) {
-                        $valid_entries[0]['t_flag'] = TRUE;
+                    if ($backup_thumbnail_long_flag == true) {
+                        $valid_entries[0]['t_flag'] = true;
                     } else {
                         unset($valid_entries[0]["t_flag"]);
                     }
                     break;
                 } else {
                     // Try and wait until another comes available
-                    $just_waiting_on_thumbnail = TRUE;
+                    $just_waiting_on_thumbnail = true;
                 }
             }
         }
@@ -1068,12 +1030,13 @@ function parseWikiExternal($response) {
 
 // Fetch Weather From External API
 // : [ {}, ... ] || []
-function getWeatherExternal($iso2) {
+function getWeatherExternal($iso2)
+{
     // Get lat/lng of Capital to use
     // If no capital, use top populated city... or get country lat/lng from another table (rest countries?) to use
     /* Methods */
-    function getCapitalWeather($iso2, $getOneCall) {
-        function _parse_weather_one_call($response_array) {
+    function _getCapitalWeather($iso2) {
+        function _parseWeatherOneCall($response_array) {
             $rtn_obj = [];
             
             // Current
@@ -1197,7 +1160,7 @@ function getWeatherExternal($iso2) {
             if (isset($response_array['hourly'])) {
                 $hourly_array = $response_array['hourly'];
                 $hours = [];
-                foreach($hourly_array as $hourly) {
+                foreach ($hourly_array as $hourly) {
                     $hour = [];
                     // Time
                     if (isset($hourly['dt'])) {
@@ -1322,7 +1285,7 @@ function getWeatherExternal($iso2) {
             if (isset($response_array['daily'])) {
                 $daily_array = $response_array['daily'];
                 $days = [];
-                foreach($daily_array as $daily) {
+                foreach ($daily_array as $daily) {
                     $day = [];
                     // Unix day
                     if (isset($daily['dt'])) {
@@ -1511,7 +1474,7 @@ function getWeatherExternal($iso2) {
             if (isset($response_array['alerts'])) {
                 $alerts = $response_array['alerts'];
                 $rtn_alerts = [];
-                foreach($alerts as $alert_array) {
+                foreach ($alerts as $alert_array) {
                     $rtn_alert = [];
                     if (isset($alert_array['start'])) {
                         $start = $alert_array['start'];
@@ -1547,7 +1510,7 @@ function getWeatherExternal($iso2) {
         $capitals_string = file_get_contents($capitals_path);
         if (is_null($capitals_string)) return [];
         if ($capitals_string == "") return [];
-        $capitals_assoc = json_decode($capitals_string, TRUE);
+        $capitals_assoc = json_decode($capitals_string, true);
         if (!isset($capitals_assoc[$iso2])) return [];
         $capital_obj = $capitals_assoc[$iso2];
         //if (!isset($capital_obj['cap'])) return [];
@@ -1566,10 +1529,8 @@ function getWeatherExternal($iso2) {
         if ($api_key == "") return [];
 
         // One Call vs Current
-        $url = "https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${api_key}&units=metric";
-        if ($getOneCall) {
-            $url = "https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lng}&exclude=minutely&appid=${api_key}&units=metric";
-        }
+        //$url = "https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${api_key}&units=metric";
+        $url = "https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lng}&exclude=minutely&appid=${api_key}&units=metric";
 
         //  cURL
         $ch = curl_init();
@@ -1581,30 +1542,29 @@ function getWeatherExternal($iso2) {
         $response_array = json_decode($response, true);
 
         // Parse response
-        $parsed_response = NULL;
-        if ($getOneCall) {
-            $parsed_response = _parse_weather_one_call($response_array);
-        }
+        $parsed_response = _parseWeatherOneCall($response_array);
         // Return object
         return $parsed_response;
     }
     
-
     // Try capital
-    $capital_weather = getCapitalWeather($iso2, true);
+    $capital_weather = _getCapitalWeather($iso2);
     if (count($capital_weather) > 0) return $capital_weather;
 
+    // Error
     return [];
 }
 
 // Fetch Financial From External API
 // : [ {}, ... ] || []
-function getFinancialExternal($iso2) {
+function getFinancialExternal($iso2)
+{
     // No external API currently for consideration
-    return NULL;
+    return null;
 }
 
-function genPeopleUrl($iso2) {
+function genPeopleUrl($iso2)
+{
     $req_keys = ['currencies', 'idd', 'area', 'population', 'flags'];
     $fields = implode(',', $req_keys);
     $url = "https://restcountries.com/v3.1/alpha/${iso2}?fields=${fields}";
@@ -1613,7 +1573,8 @@ function genPeopleUrl($iso2) {
 
 // Fetch OtherData From External API
 // : [ {}, ... ] || []
-function parsePeopleExternal($response, $conn, $iso2) {
+function parsePeopleExternal($response, $conn, $iso2)
+{
     global $res_data_objs;
 
     $response_array = json_decode($response, true);
@@ -1702,7 +1663,7 @@ function parsePeopleExternal($response, $conn, $iso2) {
 
     // Update DB
     $sql_fields = [];
-    for ($i=0; $i<count($db_keys); $i++) {
+    for ($i = 0; $i < count($db_keys); $i++) {
         $db_key = $db_keys[$i];
         $db_val = $db_vals[$i];
         $sql_field = "${db_key} = ${db_val}";
@@ -1718,18 +1679,19 @@ function parsePeopleExternal($response, $conn, $iso2) {
 }
 
 /* 4xx Client error */
-function bad_request() {
+function badRequest()
+{
     $code = 400;
     http_response_code($code);
 }
-function client_spam() {
+function clientSpam()
+{
     $code = 429;
     http_response_code($code);
 }
 /* 5xx Server error */
-function internal_server() {
+function internalServer()
+{
     $code = 500;
     http_response_code($code);
 }
-
-?>
