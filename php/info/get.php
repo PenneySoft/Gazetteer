@@ -466,7 +466,7 @@ function iso2ToCountryName($iso2)
     }
     $iso2_array = $iso_object['iso2'];
     $index = array_search($iso2, $iso2_array);
-    if ($index == false) {
+    if ($index === false) {
         // Edge case: ISO not found
         return false;
     }

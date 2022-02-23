@@ -178,7 +178,7 @@ if (storageIsAvailabile) {
   initHdCacheExpiryFromStorage();
 }
 
-addSearchInputListener();
+//addSearchInputListener();
 addTabListeners();
 
 // Open menu
@@ -203,16 +203,18 @@ fetchNamesAndIsoJson();
 /*      Leaflet & OpenStreetMap     */
 
 // Layers
-mapStore.layersObj = genLayersObj();
+//mapStore.layersObj = genLayersObj();
 // Overlays
-mapStore.overlaysObj = genOverlaysObj();
+//mapStore.overlaysObj = genOverlaysObj();
+
 
 // Init map
 mapStore.appmap = L.map("appmap").setView(
   mapStore.initCoords,
   mapStore.defaultZoom
 );
-initLayer();
+//addLayersAndOverlays();
+//initLayer();
 
 // Feature group
 mapStore.geoJsonFeatureGroup = L.geoJson().addTo(mapStore.appmap);
@@ -221,17 +223,17 @@ mapStore.geoJsonFeatureGroup = L.geoJson().addTo(mapStore.appmap);
 addGhostLayers(L, mapStore.appmap);
 
 // Map tile style buttons
-addMenuLayerListeners();
+//addMenuLayerListeners();
 // Settings menu
-addSettingsIconListener();
+//addSettingsIconListener();
 
 // Fetch stored user Coords array
 if (mapStore.fetchedCoordsFromStorage) {
   // Set marker
   const userLatLng = [mapStore.userPos.lat, mapStore.userPos.lng];
   initUserLocationIcon(userLatLng);
+  zoomToUser();
   setTimeout(() => {
-    zoomToUser();
   }, 1500);
 }
 
@@ -530,10 +532,10 @@ function loadNewCountryWiki(iso2) {
   // Cache data that arrives (if allowed)
   const wikiObj = dataStore.iso2ToWiki[iso2];
   if (wikiObj) {
-    // Generate Ps
-    prepContainersFromArray(['wiki']);
     // Generate from stored var
+    prepContainersFromArray(['wiki']);
     convertWikiObjToDom(wikiObj);
+    loadTop10ToMapAndWiki(iso2);
   } else {
     const infoTypesArray = ["wiki"];
     loadCountryPhp(iso2, infoTypesArray);
@@ -555,6 +557,8 @@ function loadNewCountryWiki(iso2) {
 }
 // Wiki to DOM
 function convertWikiObjToDom(wikiObj) {
+  const $target = $("div#wiki-wiki");
+  $target.empty();
   const spinnerKey = "convertWikiToDom";
   addSpinnerToQueue(spinnerKey);
   const { sum, wikiUrl, thumbnailUrl } = wikiObj;
@@ -578,7 +582,6 @@ function convertWikiObjToDom(wikiObj) {
   const $title = $("<h5>Wiki</h5>");
 
   // Add to target
-  const $target = $("div#wiki-wiki");
   $target.append($wikiShortContainer);
   // Remove spinner
   $target.children('div.spinner-container').remove();
@@ -595,7 +598,6 @@ function convertWeatherObjToDom(weatherObj) {
   // Clear contents
   clearColumn();
   // Create empty <p>
-  //createTargetContainers();
   prepContainersFromArray(['weather']);
 
   setDataToTargets();
@@ -2124,6 +2126,73 @@ function gen$DataSlider(dataPoint, quartileObj) {
 }
 
 // Find cloest matching country name
+function handleSelectChange(e) {
+  const countryname = e.target.value || null;
+  const iso = nameToIso2(countryname);
+  if (!iso) return;
+  // Load outline
+  loadHdOutlineAndTop10FromIso(iso);
+
+  // Generate Ps
+  resetInfoPanel();
+  prepContainersFromArray(['wiki']);
+
+  // Load country
+  loadNewCountryWiki(iso);
+
+  /*  Methods */
+  function loadHdOutlineAndTop10FromIso(iso) {
+    const switchingLayers = iso !== appState.currentIso;
+    if (!switchingLayers) return;
+    const previousIso = appState.currentIso;
+    // Switching layers
+    if (mapStore.currentIsoLayer) {
+      // Hide current outline
+      setLayerInvisible(mapStore.currentIsoLayer);
+    }
+    // Get new layer, set active
+    const layerId = mapStore.layerIso2ToId[iso];
+    const layer = mapStore.geoJsonFeatureGroup.getLayer(layerId);
+    setLayerActive(layer);
+
+    // Update references
+    mapStore.currentIsoLayer = layer;
+    if (previousIso) {
+      removeCityMarkers(previousIso);
+    }
+    appState.currentIso = iso;
+
+    // Zoom
+    mapStore.appmap.fitBounds(mapStore.tinyLatLngsBounds[iso]);
+
+    // Either: Load Top10, or loadHD outline & then Top10
+    const gotHdOutline = mapStore.hdOutlineAlreadyUpdated[iso];
+    if (gotHdOutline) {
+      // Display capitals
+      loadTop10ToMapAndWiki(iso);
+    } else {
+      // No HD outline yet, fetch
+      const feature = mapStore.isoToFeature[iso];
+      if (!feature || !layer) {
+        // Edge case
+        log("Error: Haven't got HD outline, but feature/layer also missing from reference obj(s)");
+      }
+      const fromClick = true;
+      loadHdOutline(iso, layer, feature, fromClick);
+    }
+  }
+  /* Methods */
+  function resetInfoPanel() {
+    const idNames = ["wiki", "weather", "financial", "people"];
+    for (let i = 0; i < idNames.length; i++) {
+      // Clear tab divs
+      const selector = "#data-" + idNames[i];
+      const $div = $(selector);
+      $div.empty();
+    }
+  }
+}
+
 function searchCountryName(userSearchTerm) {
   const term = userSearchTerm.toLowerCase().trim();
 
@@ -2317,6 +2386,7 @@ async function fetchNamesAndIsoJson() {
   /*  Methods */
   // Names
   async function fetchNamesJson() {
+    $('#select-country').on("change", handleSelectChange);
     // Try storage
     const storageKey = storageKeys.COUNTRYNAMES;
     const jsonString = fetchFromStorage(storageKey);
@@ -2340,6 +2410,13 @@ async function fetchNamesAndIsoJson() {
     // Handle data
     function handleData(data) {
       dataStore.countryIsoArrays.n = data;
+      const $selectCountry = $('#select-country');
+      for (let i=0; i<data.length; i++) {
+        const countryname = data[i];
+        const $option = $(`<option value="${countryname}">${countryname}</option>`);
+        $selectCountry.append($option);
+      }
+      /*
       // Update search bar
       // Bloodhound
       var bloodhoundTt = new Bloodhound({
@@ -2369,6 +2446,7 @@ async function fetchNamesAndIsoJson() {
         $("#search-input").val(datum);
         searchCountryName(datum);
       }
+      */
     }
   }
   // ISO2s
@@ -2403,8 +2481,8 @@ async function fetchNamesAndIsoJson() {
 }
 
 // Add listeners
-
 // Search input
+/*
 function addSearchInputListener() {
   const $input = $("#search-input");
   $input.on("keyup", function (e) {
@@ -2421,6 +2499,8 @@ function addSearchInputListener() {
     searchCountryName(userInput);
   });
 }
+*/
+
 function addMenuListeners() {
   // Open menu
   $("#menu-open-hover-zone").on("mouseenter mousedown", menuExpand);
@@ -2526,7 +2606,7 @@ function onEachFeatureCallback(feature, layer) {
     // Don't highlight if already viewing
     if (iso2 === appState.currentIso) return;
     highlightLayer(layer);
-    suggestSearch(countryName);
+    //suggestSearch(countryName);
     // Load HD if suspected cached
     loadHdFromCacheOnMouseover(iso2, layer, feature);
   });
@@ -2600,7 +2680,6 @@ function onEachFeatureCallback(feature, layer) {
     if (iso2 === appState.currentIso) return;
     layer.closePopup();
     setLayerInvisible(layer);
-    clearSearchOnMouseout();
   });
 
   // Add layer to GeoJSON FeatureGroup
@@ -2769,7 +2848,11 @@ function loadTop10ToMapAndWiki(iso2) {
     layerGroup.addTo(mapStore.appmap);
     // Populate Wiki tab
     const top10 = mapStore.isoToTop10Json[iso2];
-    if (top10) addCitiesToWiki(top10);
+    if (top10) {
+      addCitiesToWiki(top10);
+    } else {
+      log('No top10 for this country!');
+    }
   } else {
     // Data missing, fetch
     fetchTop10(iso2);
@@ -2881,15 +2964,17 @@ async function removeOverlay() {
 // Center on user location
 async function zoomToUser() {
   function zoomToCoords(userLatLng) {
-    mapStore.appmap.setView(userLatLng, mapStore.defaultZoom);
-    // Set / move marker
-    if (mapStore.userPosMarker === null) {
-      // Set
-      initUserLocationIcon(userLatLng);
-    } else {
-      // Update
-      mapStore.userPosMarker.setLatLng(userLatLng);
-    }
+    setTimeout(() => {
+      mapStore.appmap.setView(userLatLng, mapStore.defaultZoom);
+      // Set / move marker
+      if (mapStore.userPosMarker === null) {
+        // Set
+        initUserLocationIcon(userLatLng);
+      } else {
+        // Update
+        mapStore.userPosMarker.setLatLng(userLatLng);
+      }
+    }, 1500);
   }
 
   let msWait = 20;
@@ -2961,71 +3046,80 @@ function initUserLocationIcon(userLatLng) {
 function addUserLocationCrosshair() {
   L.easyButton("fa-crosshairs fa-lg", function (btn, map) {
     // Get location if not already set
+    log('In EasyButton Location');
     if (
       mapStore.userPos.lat === null ||
       mapStore.userPos.lng === null ||
       !mapStore.fetchCoordsFromNav
-    )
-      updateUserCoords();
-    // Zoom to user location
-    zoomToUser();
+      ) {
+      navigatorWrapper();
+    } else {
+      zoomToUser();
+    }
   }, 'Location').addTo(mapStore.appmap);
 
-  function updateUserCoords() {
-    if (!navigator) {
-      log("No navigator.");
-      return;
-    }
-    if (!navigator.geolocation) {
-      log("Geolocation is not supported by this browser.");
-      return;
-    }
+  navigatorWrapper();
+}
 
-    var posOptions = {
-      enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 0,
-    };
-
-    function onSuccess(pos) {
-      const { coords } = pos;
-      if (!coords) return;
-      const { latitude, longitude } = coords;
-      // Check if parse-able
-      const latitudeNumber = Number(latitude);
-      const longitudeNumber = Number(longitude);
-      if (isNaN(latitudeNumber)) return;
-      if (isNaN(longitudeNumber)) return;
-      // If reached here, coords have been parsed to int
-      mapStore.userPos.lat = latitudeNumber;
-      mapStore.userPos.lng = longitudeNumber;
-      mapStore.fetchCoordsFromNav = true;
-      cacheUserPos([latitudeNumber, longitudeNumber]);
-    }
-
-    function onError(err) {
-      let errorMessage = "Unable to get your location.";
-      const { code, message } = err;
-      switch (code) {
-        case 1:
-          errorMessage =
-            "Permission needs to be granted in your browser to get current location.";
-          break;
-      }
-      if (!errorMessage) {
-        // Message not retrieved from Switch
-        if (message) {
-          // Pass error message down
-          errorMessage = message;
-        } else {
-          // No error message generated, pass generic error message
-          errorMessage = "Unable to get your location.";
-        }
-      }
-      alert(errorMessage);
-    }
-    navigator.geolocation.getCurrentPosition(onSuccess, onError, posOptions);
+function navigatorWrapper() {
+  if (!navigator) {
+    log("No navigator.");
+    return;
   }
+  if (!navigator.geolocation) {
+    log("Geolocation is not supported by this browser.");
+    return;
+  }
+
+  var posOptions = {
+    enableHighAccuracy: true,
+    timeout: 5000,
+    maximumAge: 0,
+  };
+
+  function onSuccess(pos) {
+    const { coords } = pos;
+    if (!coords) return;
+    const { latitude, longitude } = coords;
+    // Check if parse-able
+    const latitudeNumber = Number(latitude);
+    const longitudeNumber = Number(longitude);
+    if (isNaN(latitudeNumber)) return;
+    if (isNaN(longitudeNumber)) return;
+    // If reached here, coords have been parsed to int
+    mapStore.userPos.lat = latitudeNumber;
+    mapStore.userPos.lng = longitudeNumber;
+    mapStore.fetchCoordsFromNav = true;
+    cacheUserPos([latitudeNumber, longitudeNumber]);
+    // Zoom to user location
+    zoomToUser();
+    setTimeout(() => {
+      //mapStore.appmap.setView([latitudeNumber,longitudeNumber], mapStore.defaultZoom);
+    }, 1500);
+  }
+
+  function onError(err) {
+    let errorMessage = "Unable to get your location.";
+    const { code, message } = err;
+    switch (code) {
+      case 1:
+        errorMessage =
+          "Permission needs to be granted in your browser to get current location.";
+        break;
+    }
+    if (!errorMessage) {
+      // Message not retrieved from Switch
+      if (message) {
+        // Pass error message down
+        errorMessage = message;
+      } else {
+        // No error message generated, pass generic error message
+        errorMessage = "Unable to get your location.";
+      }
+    }
+    log(errorMessage);
+  }
+  navigator.geolocation.getCurrentPosition(onSuccess, onError, posOptions);
 }
 
 // Fetch Top10 cities JSON from either: storage, or API (then store)
@@ -3151,12 +3245,16 @@ function fetchTop10(iso2) {
       marker.on("click", function () {
         marker.openPopup(latLng);
       });
+      /*
       marker.on("mouseover", function () {
         suggestSearch(n);
       });
+      */
+      /*
       marker.on("mouseout", function () {
         clearSearchOnMouseout();
       });
+      */
       markers.addLayer(marker);
     }
     if (mapStore.iso2Top10Cities[iso2])
@@ -3169,8 +3267,16 @@ function fetchTop10(iso2) {
 
 // Loop through Top10 cities array, create DOM objects of citites, and add to left panel wiki div
 function addCitiesToWiki(cities) {
-  if (!cities) return;
+  //log(cities);
+  if (!cities) {
+    log('No cities in add Cities To Wiki!');
+    return;
+  }
   const len = cities.length;
+
+  // Get target element
+  const $targetDiv = $("div#wiki-top10");
+  $targetDiv.empty();
 
   // Gen ul
   const $ul = $('<ul id="top-cities"></ul>');
@@ -3204,8 +3310,6 @@ function addCitiesToWiki(cities) {
 
     $ul.append($li);
   }
-  // Get target element
-  const $targetDiv = $("div#wiki-top10");
   // Gen title
   const $title = $("<h5>Top 10 cities</h5>");
 
@@ -3490,7 +3594,7 @@ async function loadQuartiles() {
 
 /*      Utils     */
 
-const log = (m) => console.log(m)
+function log(m) { console.log(m) }
 
 function numberWithCommas(x) {
     // 1999000.123 => 1,999,000.123
@@ -3674,7 +3778,7 @@ function nameToIso2(name) {
   let index = -1;
   for (let i = 0; i < countries.length; i++) {
     const country = countries[i].toLowerCase();
-    if (country === nameLower) continue;
+    if (country !== nameLower) continue;
     index = i;
     break;
   }
@@ -3695,33 +3799,40 @@ function convertMinuteToTimeString(minutes) {
 }
 
 /*    Global Objects    */
+function addLayersAndOverlays() {
+  const baseMaps = genLayersObj();
+  const overlayMaps = genOverlaysObj();
+  L.control.layers(baseMaps, overlayMaps).addTo(mapStore.appmap);
+  baseMaps.Street.addTo(mapStore.appmap);
+}
+
 function genLayersObj() {
   const tileUrlFormats = genTileUrlFormats();
   const tileAttr = genTileAttr();
   return {
-    street: L.tileLayer(tileUrlFormats.street, {
+    "Street": L.tileLayer(tileUrlFormats.street, {
       maxZoom: 19,
       attribution: tileAttr.street,
     }),
-    transport: L.tileLayer(tileUrlFormats.transport, {
+    "Transport": L.tileLayer(tileUrlFormats.transport, {
       maxZoom: 22,
       attribution: tileAttr.thunderforest,
     }),
-    dark: L.tileLayer(tileUrlFormats.dark, {
+    "Dark": L.tileLayer(tileUrlFormats.dark, {
       maxZoom: 20,
       attribution: tileAttr.stadia,
     }),
 
-    satellite: L.tileLayer(tileUrlFormats.sat, {
+    "Satellite": L.tileLayer(tileUrlFormats.sat, {
       attribution: tileAttr.esri,
     }),
-    night: L.tileLayer(tileUrlFormats.night, genNightOptions()),
+    "Night": L.tileLayer(tileUrlFormats.night, genNightOptions()),
 
-    topo: L.tileLayer(tileUrlFormats.topo, {
+    "Terrain": L.tileLayer(tileUrlFormats.topo, {
       maxZoom: 17,
       attribution: tileAttr.topo,
     }),
-    ocean: L.tileLayer(tileUrlFormats.ocean, {
+    "Ocean": L.tileLayer(tileUrlFormats.ocean, {
       maxZoom: 13,
       attribution: tileAttr.ocean,
     }),
@@ -3787,8 +3898,8 @@ function genOverlaysObj() {
   const tempOptions = { ...options };
   tempOptions.opacity = 0.975;
   return {
-    temp: L.tileLayer(tileUrlFormats.temp, tempOptions),
-    rain: L.tileLayer(tileUrlFormats.rain, options),
+    "Temperature": L.tileLayer(tileUrlFormats.temp, tempOptions),
+    "Rain": L.tileLayer(tileUrlFormats.rain, options),
   };
   // URL formats
   function genTileUrlFormats() {
@@ -3798,6 +3909,8 @@ function genOverlaysObj() {
     };
   }
 }
+
+addLayersAndOverlays();
 
 // Finished
 loadQuartiles();

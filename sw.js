@@ -48,7 +48,7 @@ const resourcesToPrecache = [
 // Installation of the items in the array above
 self.addEventListener('install', event => {
 	// This is called in Chrome
-	console.log('Service worker installed.');
+	//console.log('Service worker installed.');
 	// Waits until all promises are completed before returning to the event handler.
 	event.waitUntil(
 		caches.open(cacheName)
@@ -59,11 +59,11 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-	console.log('Service worker activated.');
+	//console.log('Service worker activated.');
 });
 
 self.addEventListener('fetch', event => {
-	console.log('Fetch intercepted from from sw.js for:', event.request.url);
+	//console.log('Fetch intercepted from from sw.js for:', event.request.url);
 	event.respondWith(caches.match(event.request)
 		.then(cachedResponse => {
 			// If resource is already in cache, return. Else, get resource from internet.

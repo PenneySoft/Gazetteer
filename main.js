@@ -7,7 +7,7 @@ if ('serviceWorker' in navigator) {
 		navigator.serviceWorker.register('/sw.js')
 			.then(reg => {
 				// This is called in Chrome
-				console.log('Registered sw.js from main.js!', reg);
+				//console.log('Registered sw.js from main.js!', reg);
 			}).catch(err => {
 				console.log('Registration failed: ', err);
 			});
@@ -35,7 +35,7 @@ btnInstallOffline.addEventListener('click', (e) => {
     // Did user click "Yes" or "No":
     deferredPrompt.userChoice.then((choiceResult) => {
         if (choiceResult.outcome === 'accepted') {
-            console.log('User accepted the A2HS prompt'); // Add 2 Home Screen
+            //console.log('User accepted the A2HS prompt'); // Add 2 Home Screen
         }
         // Dispose
         deferredPrompt = null;
@@ -45,5 +45,5 @@ btnInstallOffline.addEventListener('click', (e) => {
 // Confirming installation. Might not be needed or advisable, just for analytics:
 window.addEventListener('appinstalled', (evt) => {
 	//app.logEvent('a2hs', 'installed');
-	console.log('App has been installed! I think...');
+	//console.log('App has been installed!');
 });
